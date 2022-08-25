@@ -1,0 +1,66 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel ViewportCulling
+
+
+uint grassCount;
+
+struct GrassInfo
+{
+    //Terrain的本地空间下的位置旋转缩放转换矩阵
+    float4x4 localToTerrain;
+    //控制草贴图在atlas中的采样
+    float4 texParams;
+};
+
+StructuredBuffer<GrassInfo> grassInfoBuffer; //所有草的M矩阵
+float4x4 vpMatrix; //相机的VP矩阵
+float4x4 mTerrainMatrix; //terrain的M矩阵
+AppendStructuredBuffer<GrassInfo> cullResult;
+
+bool isOpenGL; //是否是OpenGL的API
+
+static float3 boundMin = float3(-0.2f, 0.0f, -0.3f);
+static float3 boundMax = float3(0.2f, 0.5f, 0.3f);
+
+bool IsInClipSpace(float4 clipSpacePosition)
+{
+    if (isOpenGL)
+        return clipSpacePosition.x > -clipSpacePosition.w && clipSpacePosition.x < clipSpacePosition.w &&
+            clipSpacePosition.y > -clipSpacePosition.w && clipSpacePosition.y < clipSpacePosition.w &&
+            clipSpacePosition.z > -clipSpacePosition.w && clipSpacePosition.z < clipSpacePosition.w;
+    else
+        return clipSpacePosition.x > -clipSpacePosition.w && clipSpacePosition.x < clipSpacePosition.w &&
+            clipSpacePosition.y > -clipSpacePosition.w && clipSpacePosition.y < clipSpacePosition.w &&
+            clipSpacePosition.z > 0 && clipSpacePosition.z < clipSpacePosition.w;
+}
+
+[numthreads(640,1,1)]
+void ViewportCulling(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= grassCount) return;
+
+    //每株草从View Space转换到World Space的矩阵（M矩阵）
+    float4x4 grassMatrix = mul(mTerrainMatrix, grassInfoBuffer[id.x].localToTerrain);
+    //每株草的MVP矩阵
+    float4x4 mvpMatrix = mul(vpMatrix, grassMatrix);
+
+    //OBB包围盒的8个在Clip Space下的顶点坐标
+    float4 boundVerts[8];
+    boundVerts[0] = mul(mvpMatrix, float4(boundMin, 1));
+    boundVerts[1] = mul(mvpMatrix, float4(boundMax, 1));
+    boundVerts[2] = mul(mvpMatrix, float4(boundMax.x, boundMax.y, boundMin.z, 1));
+    boundVerts[3] = mul(mvpMatrix, float4(boundMax.x, boundMin.y, boundMax.z, 1));
+    boundVerts[6] = mul(mvpMatrix, float4(boundMax.x, boundMin.y, boundMin.z, 1));
+    boundVerts[4] = mul(mvpMatrix, float4(boundMin.x, boundMax.y, boundMax.z, 1));
+    boundVerts[5] = mul(mvpMatrix, float4(boundMin.x, boundMax.y, boundMin.z, 1));
+    boundVerts[7] = mul(mvpMatrix, float4(boundMin.x, boundMin.y, boundMax.z, 1));
+
+    bool isInClipSpace = false;
+    for (int i = 0; i < 8; i++)
+    {
+        if (!isInClipSpace && IsInClipSpace(boundVerts[i])) isInClipSpace = true;
+    }
+    if (!isInClipSpace) return;
+
+    cullResult.Append(grassInfoBuffer[id.x]);
+}
