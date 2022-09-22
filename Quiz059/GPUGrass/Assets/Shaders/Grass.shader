@@ -83,8 +83,8 @@ Shader "Unlit/Grass"
                 struct GrassInfo{
                     //Terrain的本地空间下的位置旋转缩放转换矩阵
                     float4x4 localToTerrain;
-                    //控制草贴图在atlas中的采样
-                    float4 texParams;
+                    //id
+                    int id;
                 };
                 //声明结构化缓冲区
                 StructuredBuffer<GrassInfo> _GrassInfos;
@@ -136,9 +136,6 @@ Shader "Unlit/Grass"
                     //将Quad的本地空间的顶点和法线转换到Terrain的本地空间
                     positionOS=mul(grassInfo.localToTerrain,float4(positionOS,1)).xyz;
                     normalOS=mul(grassInfo.localToTerrain,float4(normalOS,0)).xyz;
-
-                    //uv的偏移和缩放
-                    uv=uv*grassInfo.texParams.xy+grassInfo.texParams.zw;
                 #endif
 
                 //从Terrain本地坐标转换到世界坐标
@@ -167,6 +164,7 @@ Shader "Unlit/Grass"
                 positionWS.xyz = applyWind(positionWS.xyz, grassUpDir, windDir, windStrength, positionOS.y);
                 //-----------------------------Wind End----------------------------
 
+
                 output.uv = uv;
                 output.positionWS = positionWS;
                 output.positionCS = mul(UNITY_MATRIX_VP, positionWS);
@@ -194,9 +192,9 @@ Shader "Unlit/Grass"
                 //为避免光向和normal的点积因为光照接近90度而太暗，设置最小值
                 float minDotLightAndNormal = 0.2;
 
-
                 color.rgb = max(minDotLightAndNormal, abs(dot(lightDir, normalWS))) * lightColor * diffuseColor.rgb *
                     _BaseColor.rgb * mainLight.shadowAttenuation;
+
                 return color;
             }
             ENDHLSL

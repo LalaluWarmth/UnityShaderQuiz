@@ -9,8 +9,8 @@ struct GrassInfo
 {
     //Terrain的本地空间下的位置旋转缩放转换矩阵
     float4x4 localToTerrain;
-    //控制草贴图在atlas中的采样
-    float4 texParams;
+    //id
+    int id;
 };
 
 StructuredBuffer<GrassInfo> grassInfoBuffer; //所有草的M矩阵
@@ -90,7 +90,7 @@ void ViewportCulling(uint3 id : SV_DispatchThreadID)
         depth = minZ;
         depth = depth * 0.5f + 0.5f;
     }
-
+    
     //计算应该读取哪层mipmap
     uint mipmapLevel = (uint)clamp(log2(max(maxX - minX, maxY - minY) * 0.5f * depthTextureSize), 0,
                                    log2(depthTextureSize) - 4);

@@ -30,11 +30,11 @@ public class GrassRenderFeature : ScriptableRendererFeature
         _scriptableRenderPasses.Clear();
         _hizPass = new HizRenderPass();
         _scriptableRenderPasses.Add(_hizPass);
-        // foreach (var grassTerrain in GrassTerrain.actives)
-        // {
-        //     _computePass = new GrassComputePass(grassTerrain);
-        //     _scriptableRenderPasses.Add(_computePass);
-        // }
+        foreach (var grassTerrain in GrassTerrain.actives)
+        {
+            _computePass = new GrassComputePass(grassTerrain);
+            _scriptableRenderPasses.Add(_computePass);
+        }
 
         _grassPass = new GrassRenderPass();
         _scriptableRenderPasses.Add(_grassPass);
@@ -122,6 +122,8 @@ public class HizRenderPass : ScriptableRenderPass
             //回收
             cmdDepth.Release();
         }
+
+        context.Submit();
     }
 }
 
@@ -154,11 +156,12 @@ public class GrassComputePass : ScriptableRenderPass
     //核心方法，定义执行规则；包含渲染逻辑，设置渲染状态，绘制渲染器或绘制程序网格，调度计算等等
     public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
     {
-        //从命令缓存池中获取一个gl命令缓存，CommandBuffer主要用于收集一系列gl指令，然后之后执行
-        var cmdComputeGrass = CommandBufferPool.Get(NameOfDrawGrassCommandBuffer);
-
-        try
+        if (!renderingData.cameraData.isSceneViewCamera)
         {
+            //从命令缓存池中获取一个gl命令缓存，CommandBuffer主要用于收集一系列gl指令，然后之后执行
+            var cmdComputeGrass = CommandBufferPool.Get(NameOfDrawGrassCommandBuffer);
+
+
             cmdComputeGrass.Clear();
 
             // 执行Compute Shader
@@ -181,17 +184,16 @@ public class GrassComputePass : ScriptableRenderPass
 
             //执行
             context.ExecuteCommandBuffer(cmdComputeGrass);
+            //回收
+            cmdComputeGrass.Release();
+
+            context.Submit();
 
             int[] counter = new int[5] {0, 0, 0, 0, 0};
             grassTerrain.argResult.GetData(counter);
             grassTerrain.updatedGrassCnt = counter[1];
             // Debug.Log("grassCnt count: " + counter[0] + " " + counter[1] + " " + counter[2] + " " + counter[3] + " " +
             //           counter[4]);
-        }
-        finally
-        {
-            //回收
-            cmdComputeGrass.Release();
         }
     }
 }
@@ -247,5 +249,7 @@ public class GrassRenderPass : ScriptableRenderPass
             //回收
             cmdDrawGrass.Release();
         }
+
+        context.Submit();
     }
 }

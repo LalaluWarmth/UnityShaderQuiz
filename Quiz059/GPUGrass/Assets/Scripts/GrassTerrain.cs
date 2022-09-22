@@ -19,8 +19,8 @@ public class GrassTerrain : MonoBehaviour
         //控制单株草在地面上的种植偏移和旋转
         public Matrix4x4 localToTerrain;
 
-        //用来控制草贴图在atlas中的采样(如果需要的话)
-        public Vector4 texParams;
+        //id
+        public int id;
     }
 
     //每株草的大小，会传递给材质属性
@@ -134,7 +134,6 @@ public class GrassTerrain : MonoBehaviour
             {
                 Vector2 texScale = Vector2.one;
                 Vector2 texOffset = Vector2.zero;
-                Vector4 texParams = new Vector4(texScale.x, texScale.y, texOffset.x, texOffset.y);
 
                 var positionInTerrain = GrassUtil.RandomPointInsideTriangle(v1, v2, v3);
                 float rot = Random.Range(0, 180f);
@@ -143,10 +142,13 @@ public class GrassTerrain : MonoBehaviour
                 var localToTerrain = Matrix4x4.TRS(positionInTerrain, upToNormal * Quaternion.Euler(0, rot, 0),
                     Vector3.one);
 
+                var positionInWorld = positionInTerrain + transform.position;
+                var dis = Vector3.Distance(positionInWorld, Camera.main.transform.position);
+
                 var grassInfo = new GrassInfo()
                 {
                     localToTerrain = localToTerrain,
-                    texParams = texParams
+                    id = i
                 };
                 grassInfos.Add(grassInfo);
                 grassIndex++;
@@ -157,7 +159,7 @@ public class GrassTerrain : MonoBehaviour
         }
 
         grassCnt = grassIndex;
-        grassBuffer = new ComputeBuffer(grassCnt, 64 + 16);
+        grassBuffer = new ComputeBuffer(grassCnt, 64 + 4);
         grassBuffer.SetData(grassInfos);
         return grassBuffer;
     }
@@ -197,7 +199,7 @@ public class GrassTerrain : MonoBehaviour
         grassBuffer = GenGrassBuffer();
         kernel = compute.FindKernel("ViewportCulling");
         mainCamera = Camera.main;
-        cullResult = new ComputeBuffer(grassCnt, sizeof(float) * (16 + 4), ComputeBufferType.Append);
+        cullResult = new ComputeBuffer(grassCnt, sizeof(float) * 16 + sizeof(int) * 1, ComputeBufferType.Append);
         argResult = new ComputeBuffer(1, args.Length * sizeof(uint), ComputeBufferType.IndirectArguments);
 
         compute.SetBool("isOpenGL",
@@ -211,7 +213,7 @@ public class GrassTerrain : MonoBehaviour
         mTerrainMatrixId = Shader.PropertyToID("mTerrainMatrix");
     }
 
-    void Update()
+    void Update0()
     {
         compute.SetBuffer(kernel, "grassInfoBuffer", grassBuffer);
         cullResult.SetCounterValue(0);
