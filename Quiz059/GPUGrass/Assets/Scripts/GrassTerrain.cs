@@ -8,10 +8,10 @@ using Random = UnityEngine.Random;
 public class GrassTerrain : MonoBehaviour
 {
     //每个三角面需要种植的草的数量
-    public int grassCntPerTriangle = 100;
+    public int grassCntPerTriangle = 10;
 
     //该物体上最多生成的草的数量
-    public int maxGrassCount = 100000000;
+    public int maxGrassCount = 20000;
 
     //每株草的生成信息，最终会生成GrassInfos传递给材质
     public struct GrassInfo
@@ -29,8 +29,8 @@ public class GrassTerrain : MonoBehaviour
     public Material material;
 
     //草的数量，传参给DrawMeshInstancedProcedural
-    private int _grassCnt;
-    [HideInInspector] public int updatedGrassCnt;
+    public int grassCnt;
+    public int updatedGrassCnt;
 
 
     //ComputeBuffer，会传递给材质的StructuredBuffer，设置GrassInfo
@@ -41,19 +41,20 @@ public class GrassTerrain : MonoBehaviour
 
     //_________________________视锥剔除_________________________
     public ComputeShader compute;
-    private ComputeBuffer _cullResult;
-    private int _kernel;
-    private Camera _mainCamera;
-    private int _vpMatrixId;
-    private int _mTerrainMatrixId;
-    private ComputeBuffer _argResult;
+    public ComputeBuffer cullResult;
+    public int kernel;
+    public Camera mainCamera;
+    public int vpMatrixId;
+    public int hizTextureId;
+    public int mTerrainMatrixId;
+    public ComputeBuffer argResult;
     uint[] args = new uint[5] {0, 0, 0, 0, 0};
 
 
     //任何挂载此脚本的物体，都会在其上渲染草地
-    private static HashSet<GrassTerrain> _actives = new HashSet<GrassTerrain>();
+    private static List<GrassTerrain> _actives = new List<GrassTerrain>();
 
-    public static HashSet<GrassTerrain> actives
+    public static List<GrassTerrain> actives
     {
         get { return _actives; }
     }
@@ -72,16 +73,16 @@ public class GrassTerrain : MonoBehaviour
             grassBuffer = null;
         }
 
-        if (_argResult != null)
+        if (argResult != null)
         {
-            _argResult.Dispose();
-            _argResult = null;
+            argResult.Dispose();
+            argResult = null;
         }
 
-        if (_cullResult != null)
+        if (cullResult != null)
         {
-            _cullResult.Dispose();
-            _cullResult = null;
+            cullResult.Dispose();
+            cullResult = null;
         }
     }
 
@@ -155,11 +156,9 @@ public class GrassTerrain : MonoBehaviour
             if (grassIndex > maxGrassCount) break;
         }
 
-        _grassCnt = grassIndex;
-        grassBuffer = new ComputeBuffer(_grassCnt, 64 + 16);
+        grassCnt = grassIndex;
+        grassBuffer = new ComputeBuffer(grassCnt, 64 + 16);
         grassBuffer.SetData(grassInfos);
-
-        Debug.Log("艹的数量：" + _grassCnt);
         return grassBuffer;
     }
 
@@ -189,39 +188,44 @@ public class GrassTerrain : MonoBehaviour
     public void UpdateMaterialProperties()
     {
         materialPropertyBlock.SetMatrix(ShaderProperties.TerrainLocalToWorld, transform.localToWorldMatrix);
-        materialPropertyBlock.SetBuffer(ShaderProperties.GrassInfos, _cullResult);
+        materialPropertyBlock.SetBuffer(ShaderProperties.GrassInfos, cullResult);
         materialPropertyBlock.SetVector(ShaderProperties.GrassQuadSize, grassQuadSize);
     }
 
     void Start()
     {
         grassBuffer = GenGrassBuffer();
-        _kernel = compute.FindKernel("ViewportCulling");
-        _mainCamera = Camera.main;
-        _cullResult = new ComputeBuffer(_grassCnt, sizeof(float) * (16 + 4), ComputeBufferType.Append);
-        _argResult = new ComputeBuffer(1, args.Length * sizeof(uint), ComputeBufferType.IndirectArguments);
+        kernel = compute.FindKernel("ViewportCulling");
+        mainCamera = Camera.main;
+        cullResult = new ComputeBuffer(grassCnt, sizeof(float) * (16 + 4), ComputeBufferType.Append);
+        argResult = new ComputeBuffer(1, args.Length * sizeof(uint), ComputeBufferType.IndirectArguments);
 
         compute.SetBool("isOpenGL",
             Camera.main.projectionMatrix.Equals(GL.GetGPUProjectionMatrix(Camera.main.projectionMatrix, false)));
 
         compute.SetInt("grassCount", maxGrassCount);
-        _vpMatrixId = Shader.PropertyToID("vpMatrix");
-        _mTerrainMatrixId = Shader.PropertyToID("mTerrainMatrix");
+        Debug.Log("DepthTextureGenerator.depthTextureSize " + DepthTextureGenerator.depthTextureSize);
+        compute.SetInt("depthTextureSize", DepthTextureGenerator.depthTextureSize);
+        vpMatrixId = Shader.PropertyToID("vpMatrix");
+        hizTextureId = Shader.PropertyToID("hizTexture");
+        mTerrainMatrixId = Shader.PropertyToID("mTerrainMatrix");
     }
 
-    private void Update()
+    void Update()
     {
-        compute.SetBuffer(_kernel, "grassInfoBuffer", grassBuffer);
-        _cullResult.SetCounterValue(0);
-        compute.SetBuffer(_kernel, "cullResult", _cullResult);
-        compute.SetMatrix(_vpMatrixId,
-            GL.GetGPUProjectionMatrix(_mainCamera.projectionMatrix, false) * _mainCamera.worldToCameraMatrix);
-        compute.SetMatrix(_mTerrainMatrixId, transform.localToWorldMatrix);
-        compute.Dispatch(_kernel, 1 + (_grassCnt / 640), 1, 1);
-        ComputeBuffer.CopyCount(_cullResult, _argResult, 0);
+        compute.SetBuffer(kernel, "grassInfoBuffer", grassBuffer);
+        cullResult.SetCounterValue(0);
+        compute.SetBuffer(kernel, "cullResult", cullResult);
+        compute.SetTexture(kernel, hizTextureId, DepthTextureGenerator.depthTexture);
+        compute.SetMatrix(vpMatrixId,
+            GL.GetGPUProjectionMatrix(mainCamera.projectionMatrix, false) * mainCamera.worldToCameraMatrix);
+        compute.SetMatrix(mTerrainMatrixId, transform.localToWorldMatrix);
+        compute.Dispatch(kernel, 1 + (grassCnt / 640), 1, 1);
+        ComputeBuffer.CopyCount(cullResult, argResult, sizeof(uint));
         int[] counter = new int[5] {0, 0, 0, 0, 0};
-        _argResult.GetData(counter);
-        updatedGrassCnt = counter[0];
-        // Debug.Log("grassCnt count: " + updatedGrassCnt);
+        argResult.GetData(counter);
+        updatedGrassCnt = counter[1];
+        // Debug.Log("grassCnt count: " + counter[0] + " " + counter[1] + " " + counter[2] + " " + counter[3] + " " +
+        //           counter[4]);
     }
 }
