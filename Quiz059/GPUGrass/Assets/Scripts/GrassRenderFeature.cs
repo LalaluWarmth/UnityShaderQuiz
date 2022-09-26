@@ -178,6 +178,18 @@ public class GrassComputePass : ScriptableRenderPass
                 grassTerrain.mainCamera.worldToCameraMatrix);
             cmdComputeGrass.SetComputeMatrixParam(grassTerrain.compute, grassTerrain.mTerrainMatrixId,
                 grassTerrain.transform.localToWorldMatrix);
+            cmdComputeGrass.SetComputeFloatParam(grassTerrain.compute, "clippingNear",
+                grassTerrain.mainCamera.nearClipPlane);
+            cmdComputeGrass.SetComputeFloatParam(grassTerrain.compute, "clippingFar",
+                grassTerrain.mainCamera.farClipPlane);
+            cmdComputeGrass.SetComputeFloatParam(grassTerrain.compute, "lod1",
+                grassTerrain.lod1);
+            cmdComputeGrass.SetComputeFloatParam(grassTerrain.compute, "lod2",
+                grassTerrain.lod2);
+            cmdComputeGrass.SetComputeFloatParam(grassTerrain.compute, "lod1GrassCnt",
+                grassTerrain.lod1GrassCount);
+            cmdComputeGrass.SetComputeFloatParam(grassTerrain.compute, "lod2GrassCnt",
+                grassTerrain.lod2GrassCount);
             cmdComputeGrass.DispatchCompute(grassTerrain.compute, grassTerrain.kernel,
                 1 + grassTerrain.grassCnt / 640, 1, 1);
             cmdComputeGrass.CopyCounterValue(grassTerrain.cullResult, grassTerrain.argResult, sizeof(uint));

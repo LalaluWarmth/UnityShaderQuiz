@@ -7,11 +7,28 @@ using Random = UnityEngine.Random;
 [ExecuteInEditMode]
 public class GrassTerrain : MonoBehaviour
 {
+    [Header("GrassCount")]
     //每个三角面需要种植的草的数量
-    public int grassCntPerTriangle = 10;
+    public int grassCntPerTriangle = 80;
 
     //该物体上最多生成的草的数量
-    public int maxGrassCount = 20000;
+    public static int maxGrassCount = 2000000;
+
+    //草的数量，传参给DrawMeshInstancedProcedural
+    public int grassCnt;
+    public int updatedGrassCnt;
+
+    [Header("GrassInfo")]
+    //每株草的大小，会传递给材质属性
+    public Vector2 grassQuadSize = new Vector2(0.4f, 0.6f);
+
+    public Material material;
+
+    [Header("Lod")] [Range(0, 1)] public float lod1 = 0.3f;
+    [Range(0, 1)] public float lod1GrassCount = 0.5f;
+    [Range(0, 1)] public float lod2 = 0.7f;
+    [Range(0, 1)] public float lod2GrassCount = 0.25f;
+
 
     //每株草的生成信息，最终会生成GrassInfos传递给材质
     public struct GrassInfo
@@ -23,15 +40,6 @@ public class GrassTerrain : MonoBehaviour
         public int id;
     }
 
-    //每株草的大小，会传递给材质属性
-    public Vector2 grassQuadSize = new Vector2(0.4f, 0.6f);
-
-    public Material material;
-
-    //草的数量，传参给DrawMeshInstancedProcedural
-    public int grassCnt;
-    public int updatedGrassCnt;
-
 
     //ComputeBuffer，会传递给材质的StructuredBuffer，设置GrassInfo
     public ComputeBuffer grassBuffer;
@@ -40,13 +48,13 @@ public class GrassTerrain : MonoBehaviour
     private int _seed;
 
     //_________________________视锥剔除_________________________
-    public ComputeShader compute;
+    [Header("ComputeShader")] public ComputeShader compute;
     public ComputeBuffer cullResult;
-    public int kernel;
-    public Camera mainCamera;
-    public int vpMatrixId;
-    public int hizTextureId;
-    public int mTerrainMatrixId;
+    [HideInInspector] public int kernel;
+    [HideInInspector] public Camera mainCamera;
+    [HideInInspector] public int vpMatrixId;
+    [HideInInspector] public int hizTextureId;
+    [HideInInspector] public int mTerrainMatrixId;
     public ComputeBuffer argResult;
     uint[] args = new uint[5] {0, 0, 0, 0, 0};
 
@@ -132,9 +140,6 @@ public class GrassTerrain : MonoBehaviour
 
             for (var i = 0; i < grassCntPerTriangle; i++)
             {
-                Vector2 texScale = Vector2.one;
-                Vector2 texOffset = Vector2.zero;
-
                 var positionInTerrain = GrassUtil.RandomPointInsideTriangle(v1, v2, v3);
                 float rot = Random.Range(0, 180f);
 
@@ -213,21 +218,7 @@ public class GrassTerrain : MonoBehaviour
         mTerrainMatrixId = Shader.PropertyToID("mTerrainMatrix");
     }
 
-    void Update0()
+    void Update()
     {
-        compute.SetBuffer(kernel, "grassInfoBuffer", grassBuffer);
-        cullResult.SetCounterValue(0);
-        compute.SetBuffer(kernel, "cullResult", cullResult);
-        compute.SetTexture(kernel, hizTextureId, DepthTextureGenerator.depthTexture);
-        compute.SetMatrix(vpMatrixId,
-            GL.GetGPUProjectionMatrix(mainCamera.projectionMatrix, false) * mainCamera.worldToCameraMatrix);
-        compute.SetMatrix(mTerrainMatrixId, transform.localToWorldMatrix);
-        compute.Dispatch(kernel, 1 + (grassCnt / 640), 1, 1);
-        ComputeBuffer.CopyCount(cullResult, argResult, sizeof(uint));
-        int[] counter = new int[5] {0, 0, 0, 0, 0};
-        argResult.GetData(counter);
-        updatedGrassCnt = counter[1];
-        // Debug.Log("grassCnt count: " + counter[0] + " " + counter[1] + " " + counter[2] + " " + counter[3] + " " +
-        //           counter[4]);
     }
 }

@@ -20,6 +20,14 @@ AppendStructuredBuffer<GrassInfo> cullResult;
 
 Texture2D hizTexture; //hiz纹理
 
+float clippingNear;
+float clippingFar;
+
+float lod1;
+float lod2;
+float lod1GrassCnt;
+float lod2GrassCnt;
+
 bool isOpenGL; //是否是OpenGL的API
 
 static float3 boundMin = float3(-0.2f, 0.0f, -0.3f);
@@ -90,7 +98,19 @@ void ViewportCulling(uint3 id : SV_DispatchThreadID)
         depth = minZ;
         depth = depth * 0.5f + 0.5f;
     }
-    
+
+    // ---------------------------lod deprecated--------------------------------
+    // float depth01 = 1 / ((-1 + clippingFar / clippingNear) * depth + 1);
+    //
+    // if (depth01 >= lod1 && depth01 < lod2)
+    // {
+    //     if (grassInfoBuffer[id.x].id % 100 < (1 - lod1GrassCnt) * 100) return;
+    // }
+    // else if (depth01 >= lod2)
+    // {
+    //     if (grassInfoBuffer[id.x].id % 100 < (1 - lod2GrassCnt) * 100) return;
+    // }
+
     //计算应该读取哪层mipmap
     uint mipmapLevel = (uint)clamp(log2(max(maxX - minX, maxY - minY) * 0.5f * depthTextureSize), 0,
                                    log2(depthTextureSize) - 4);

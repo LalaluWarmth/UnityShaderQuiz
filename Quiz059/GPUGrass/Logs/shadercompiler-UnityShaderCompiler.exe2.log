@@ -1,6 +1,15 @@
 Base path: 'D:/unity/2020.3.14f1c1/Editor/Data', plugins path 'D:/unity/2020.3.14f1c1/Editor/Data/PlaybackEngines'
 Cmd: initializeCompiler
 
+Cmd: compileComputeKernel
+  insize=6875 file=E:/u3dprojects/ShaderQuiz/Quiz059/GPUGrass/Assets/Shaders/CullingCompute.compute kernel=ViewportCulling cachingPP=1 ppOnly=0 stripLineD=0 buildPlatform=19 km=<UNITY_VERSION=202039> pKW=UNITY_ENABLE_REFLECTION_BUFFERS UNITY_USE_DITHER_MASK_FOR_ALPHABLENDED_SHADOWS UNITY_PBS_USE_BRDF1 UNITY_SPECCUBE_BOX_PROJECTION UNITY_SPECCUBE_BLENDING UNITY_ENABLE_DETAIL_NORMALMAP SHADER_API_DESKTOP UNITY_LIGHT_PROBE_PROXY_VOLUME UNITY_LIGHTMAP_RGBM_ENCODING uKW=SHADER_STAGE_COMPUTE platform=d3d11 flags=0  error: 1 plat 4 at CullingCompute.compute(44): integer modulus may be much slower, try using uints if possible.
+ ok=1 outsize=9011
+
+Cmd: compileComputeKernel
+  insize=7277 file=E:/u3dprojects/ShaderQuiz/Quiz059/GPUGrass/Assets/Shaders/CullingCompute.compute kernel=ViewportCulling cachingPP=1 ppOnly=0 stripLineD=0 buildPlatform=19 km=<UNITY_VERSION=202039> pKW=UNITY_ENABLE_REFLECTION_BUFFERS UNITY_USE_DITHER_MASK_FOR_ALPHABLENDED_SHADOWS UNITY_PBS_USE_BRDF1 UNITY_SPECCUBE_BOX_PROJECTION UNITY_SPECCUBE_BLENDING UNITY_ENABLE_DETAIL_NORMALMAP SHADER_API_DESKTOP UNITY_LIGHT_PROBE_PROXY_VOLUME UNITY_LIGHTMAP_RGBM_ENCODING uKW=SHADER_STAGE_COMPUTE platform=d3d11 flags=0  error: 1 plat 4 at CullingCompute.compute(106): integer modulus may be much slower, try using uints if possible.
+  error: 1 plat 4 at CullingCompute.compute(110): integer modulus may be much slower, try using uints if possible.
+ ok=1 outsize=10206
+
 Cmd: shutdown
 
 Quitting shader compiler process
